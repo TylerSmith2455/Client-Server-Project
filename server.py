@@ -19,11 +19,13 @@ def talking_fn(conn: socket) -> None:
 
 
 def main(hostname: str, portno: int) -> None:
-    conn = socket(AF_INET, SOCK_STREAM)
-    conn.connect((hostname, portno))
+    server_sock = socket(AF_INET, SOCK_STREAM)
+    server_sock.bind((hostname, portno))
+    server_sock.listen()
+    client_sock, client_addr = server_sock.accept()
 
-    listening_thread = Thread(target=listening_fn, args=(conn,))
-    talking_thread = Thread(target=talking_fn, args=(conn,))
+    listening_thread = Thread(target=listening_fn, args=(client_sock,))
+    talking_thread = Thread(target=talking_fn, args=(client_sock,))
 
     listening_thread.start()
     talking_thread.start()
@@ -31,7 +33,8 @@ def main(hostname: str, portno: int) -> None:
     listening_thread.join()
     talking_thread.join()
 
-    conn.close()
+    client_sock.close()
+    server_sock.close()
 
 
 if __name__ == "__main__":
