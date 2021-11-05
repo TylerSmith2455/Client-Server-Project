@@ -1,5 +1,6 @@
 from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread
+import os
 
 
 def listening_fn(conn: socket) -> None:
@@ -18,8 +19,30 @@ def talking_fn(conn: socket) -> None:
             messageError()
         elif word_list[0] == "EXIT":
             break
+        #Uploads a file to the receiver if the user enters the UPLOAD keyword
         elif word_list[0] == "UPLOAD":
-            conn.send(word_list[1].encode("utf-8"))
+            #If the file exists then send it
+            if os.path.exists(f"{word_list[1]}"):
+                file = open(f"{word_list[1]}", "rb")
+                filesize = os.path.getsize(f"{word_list[1]}")
+                conn.send(f"UPLOAD {word_list[1]} {filesize}".encode())
+                data = file.read()
+                file.close()
+                conn.sendall(data)
+            else:
+                print(f"{word_list[1]} could not be found")
+            #conn.send(word_list[1].encode("utf-8"))
+        #Deletes a file if the user enters the DELETE keyword
+        elif word_list[0] == "DELETE":
+            #If the file exists then delete it
+            if os.path.exists(f"{word_list[1]}"):
+                os.remove(f"{word_list[1]}")
+            else:
+                print(f"File {word_list[1]} could not be found")
+        elif word_list[0] == "DIR":
+            path = os.getcwd()
+            list = os.listdir(path)
+            print(f"{list}")
         else:
             messageError()
 

@@ -1,12 +1,27 @@
 from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread
+import os
 
 
 def listening_fn(conn: socket) -> None:
     while True:
         message = conn.recv(2048)
-        print(f"[CLIENT] {message.decode('utf-8')}")
-        if message.decode("utf-8") == "exit":
+        message = message.decode('utf-8')
+        word_list = message.split()
+
+        #Uploads a file if the client sends the UPLOAD keyword
+        if word_list[0] == "UPLOAD":
+            print(f"{message}")
+            filename = word_list[1]
+            filesize = word_list[2]
+            filesize = int(filesize)
+            with open(filename, "wb") as file:
+                print("I got here right here")
+                data = conn.recv(filesize)
+                file.write(data)
+                file.close()
+        #print(f"[CLIENT] {message.decode('utf-8')}")
+        if word_list[0] == "exit":
             break
 
 
