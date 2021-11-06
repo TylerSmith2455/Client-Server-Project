@@ -6,9 +6,20 @@ import os
 def listening_fn(conn: socket) -> None:
     while True:
         message = conn.recv(2048)
-        print(f"[CLIENT] {message.decode('utf-8')}")
-        if message.decode("utf-8") == "exit":
-            break
+        message = message.decode('utf-8')
+        word_list = message.split()
+        
+        if word_list[0] == "DOWNLOAD":
+            filename = word_list[1]
+            filesize = word_list[2]
+            filesize = int(filesize)
+            with open(filename, "wb") as file:
+                print("I got here right here")
+                data = conn.recv(filesize)
+                file.write(data)
+                file.close()
+        elif word_list[0] == "ERROR":
+            print(f"{word_list[1]} could not be found!!!")
 
 
 def talking_fn(conn: socket) -> None:
@@ -33,6 +44,9 @@ def talking_fn(conn: socket) -> None:
                 print(f"{word_list[1]} could not be found")
             #conn.send(word_list[1].encode("utf-8"))
         #Deletes a file if the user enters the DELETE keyword
+        elif word_list[0] == "DOWNLOAD":
+            conn.send(f"DOWNLOAD {word_list[1]}".encode())
+
         elif word_list[0] == "DELETE":
             #If the file exists then delete it
             if os.path.exists(f"{word_list[1]}"):

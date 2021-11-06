@@ -20,8 +20,18 @@ def listening_fn(conn: socket) -> None:
                 data = conn.recv(filesize)
                 file.write(data)
                 file.close()
-        #print(f"[CLIENT] {message.decode('utf-8')}")
-        if word_list[0] == "exit":
+        elif word_list[0] == "DOWNLOAD":
+            if os.path.exists(f"{word_list[1]}"):
+                file = open(f"{word_list[1]}", "rb")
+                filesize = os.path.getsize(f"{word_list[1]}")
+                conn.send(f"DOWNLOAD {word_list[1]} {filesize}".encode())
+                data = file.read()
+                file.close()
+                conn.sendall(data)
+            else:
+                conn.send(f"ERROR {word_list[1]}".encode())
+                print(f"{word_list[1]} could not be found")
+        elif word_list[0] == "exit":
             break
 
 
