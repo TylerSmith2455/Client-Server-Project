@@ -1,8 +1,9 @@
 from socket import socket, AF_INET, SOCK_STREAM
-from threading import Thread
+import threading
+from queue import Queue
 import os
 
-def listening_fn(conn: socket) -> None:
+def listening_fn(conn: socket, q) -> None:
     while True:
         message = conn.recv(2048)
         message = message.decode('utf-8')
@@ -28,41 +29,46 @@ def listening_fn(conn: socket) -> None:
                 file.close()
                 conn.sendall(data)
             else:
-                conn.send(f"ERROR {word_list[1]}".encode())
-                print(f"{word_list[1]} could not be found")
+                q.put({word_list[1]})
+                q.put({word_list[1]})
+                #conn.send(f"ERROR {word_list[1]}".encode())
+                #print(f"{word_list[1]} could not be found")
         elif word_list[0] == "EXIT":
             conn.send("EXIT".encode())
             break
 
 
-def talking_fn(conn: socket) -> None:
+def talking_fn(conn: socket, q) -> None:
     while True:
-        message = input("Enter Message: ")
-        conn.send(message.encode("utf-8"))
-        if message == "exit":
-            break
+        if q.qsize() > 1:
+            temp = q.get()
+            print(temp)
+            print({threading.get_ident()})
+        else:
+            continue
 
 def main(hostname: str, portno: int) -> None:
     server_sock = socket(AF_INET, SOCK_STREAM)
     server_sock.bind((hostname, portno))
     server_sock.listen()
-    def clients() -> None:
+    q = Queue()
+    def clients(q) -> None:
         client_sock, client_addr = server_sock.accept()
-        client_thread = Thread(target=clients, args=())
+        client_thread = threading.Thread(target=clients, args=(q, ))
         client_thread.start()
         print('Connected to: ' + client_addr[0] + ':' + str(client_addr[1]))
-        listening_thread = Thread(target=listening_fn, args=(client_sock,))
-       # talking_thread = Thread(target=talking_fn, args=(client_sock,))
+        listening_thread = threading.Thread(target=listening_fn, args=(client_sock,q, ))
+        talking_thread = threading.Thread(target=talking_fn, args=(client_sock,q, ))
 
         listening_thread.start()
-       # talking_thread.start()
-
+        talking_thread.start()
+        client_thread.join()
         listening_thread.join()
-       # talking_thread.join()
+        talking_thread.join()
 
         print("conn was closed")
         client_sock.close()
-    clients()
+    clients(q)
     #server_sock.close()
 
 if __name__ == "__main__":
