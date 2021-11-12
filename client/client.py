@@ -1,36 +1,58 @@
 from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread
 import os
+import time
 
 
-
+# Listening thread to receive messages
 def listening_fn(conn: socket) -> None:
     while True:
+        # Receive the message, decode, and split
         message = conn.recv(2048)
         message = message.decode('utf-8')
         word_list = message.split()
         
+        # If it is a DOWNLOAD message, prepare to receive a file
         if word_list[0] == "DOWNLOAD":
             filename = word_list[1]
             filesize = word_list[2]
             filesize = int(filesize)
             with open(filename, "wb") as file:
                 print("I got here right here")
+
+                # Receive the file
                 data = conn.recv(filesize)
+
+                # Save the file
                 file.write(data)
                 file.close()
+            # If this DOWNLOAD came from another client, send an ACK to the server
+            if len(word_list) == 4: 
+                time.sleep(1)
+                conn.send(f"ACK {word_list[1]}".encode())
         elif word_list[0] == "EXIT":
             break
         elif word_list[0] == "ERROR":
             print(f"{word_list[1]} could not be found!!!")
+        # If the server asks for a file, send it if we have it
+        elif word_list[0] == "UPLOAD":
+            if os.path.exists(f"{word_list[1]}"):
+                file = open(f"{word_list[1]}", "rb")
+                filesize = os.path.getsize(f"{word_list[1]}")
+                conn.send(f"UPLOAD {word_list[1]} {filesize}".encode())
+                data = file.read()
+                file.close()
+                conn.sendall(data)
 
 
 def talking_fn(conn: socket) -> None:
     while True:
+        # Get input from the user
         message = input("Enter Message: ")
         word_list = message.split()
         if not word_list:
             messageError()
+        # If the user wants to exit, let the server know and disconnect
         elif word_list[0] == "EXIT":
             conn.send("EXIT".encode())
             break
@@ -46,11 +68,10 @@ def talking_fn(conn: socket) -> None:
                 conn.sendall(data)
             else:
                 print(f"{word_list[1]} could not be found")
-            #conn.send(word_list[1].encode("utf-8"))
-        #Deletes a file if the user enters the DELETE keyword
+        # Ask the server for a file
         elif word_list[0] == "DOWNLOAD":
             conn.send(f"DOWNLOAD {word_list[1]}".encode())
-
+        #Deletes a file if the user enters the DELETE keyword
         elif word_list[0] == "DELETE":
             #If the file exists then delete it
             if os.path.exists(f"{word_list[1]}"):
@@ -87,15 +108,20 @@ def main() -> None:
             exit()
         elif len(word_list) < 3:
             commandError()
+        # Try to connect to the server
         elif word_list[0] == "CONNECT":
             server_IP = word_list[1]
             server_port = int(word_list[2])
             conn = socket(AF_INET, SOCK_STREAM)
             conn.connect((server_IP, server_port))
 
+            # Thread for listening for messages from the server
             listening_thread = Thread(target=listening_fn, args=(conn,))
+
+            # Thread for sending messages to the server
             talking_thread = Thread(target=talking_fn, args=(conn,))
 
+            # Start both threads
             listening_thread.start()
             talking_thread.start()
 

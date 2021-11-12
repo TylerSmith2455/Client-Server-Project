@@ -3,7 +3,6 @@ from threading import Thread
 import os
 
 
-
 def listening_fn(conn: socket) -> None:
     while True:
         message = conn.recv(2048)
@@ -19,10 +18,20 @@ def listening_fn(conn: socket) -> None:
                 data = conn.recv(filesize)
                 file.write(data)
                 file.close()
+            if word_list[3] == 1:
+                conn.send(f"ACK {word_list[1]}")
         elif word_list[0] == "EXIT":
             break
         elif word_list[0] == "ERROR":
             print(f"{word_list[1]} could not be found!!!")
+        elif word_list[0] == "UPLOAD":
+            if os.path.exists(f"{word_list[1]}"):
+                file = open(f"{word_list[1]}", "rb")
+                filesize = os.path.getsize(f"{word_list[1]}")
+                conn.send(f"UPLOAD {word_list[1]} {filesize}".encode())
+                data = file.read()
+                file.close()
+                conn.sendall(data)
 
 
 def talking_fn(conn: socket) -> None:
