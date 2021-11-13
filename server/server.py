@@ -1,4 +1,4 @@
-from socket import socket, AF_INET, SOCK_STREAM
+import socket
 import threading
 from queue import Queue
 import os
@@ -9,7 +9,7 @@ def listening_fn(conn: socket, q) -> None:
     while True:
         # Receive the message, decode, and split
         message = conn.recv(2048)
-        message = message.decode('utf-8')
+        message = message.decode('latin-1')
         word_list = message.split()
 
         #Uploads a file if the client sends the UPLOAD keyword
@@ -18,44 +18,73 @@ def listening_fn(conn: socket, q) -> None:
             filename = word_list[1]
             filesize = word_list[2]
             filesize = int(filesize)
-            with open(filename, "wb") as file:
-                print("I got here right here")
-                data = conn.recv(filesize)
-                file.write(data)
-                file.close()
+            file = open(filename, "wb")
+
+            # Continually receive the file
+            while True:
+                conn.settimeout(1)
+                try:
+                    datas = conn.recv(filesize)
+                except:
+                    break
+                conn.settimeout(None)
+
+                # Save the file
+                file.write(datas)
+            file.close()
+            conn.settimeout(None)
+            print(f"{filename} was uploaded")
+
         # Send the specified file to client
         # If it isn't on the server ask the other client
         elif word_list[0] == "DOWNLOAD":
             if os.path.exists(f"{word_list[1]}"):
                 file = open(f"{word_list[1]}", "rb")
                 filesize = os.path.getsize(f"{word_list[1]}")
+
+                # Let the client know a file is about to be sent
                 conn.send(f"DOWNLOAD {word_list[1]} {filesize}".encode())
-                data = file.read()
+
+                # Continually send the file
+                datas = file.read(filesize)
+                while datas:
+                    conn.send(datas)
+                    datas = file.read(filesize)
                 file.close()
-                conn.sendall(data)
+                print(f"{word_list[1]} was upload")
+
             else: # Ask the other client for the file
                 # Create a variable to store the current clients sock and requested file
                 temp = [conn, word_list[1]]
-                # Put the variable into the queue, so the other client has access to it
                 q.put(temp)
-                # Give the client time to check for the file and send it
                 time.sleep(1)
+
                 # If the file was found send it, if not send an error
                 if os.path.exists(f"{word_list[1]}"):
                     file = open(f"{word_list[1]}", "rb")
                     filesize = os.path.getsize(f"{word_list[1]}")
+
+                    # Let the client know a file is about to be sent
                     conn.send(f"DOWNLOAD {word_list[1]} {filesize} 1".encode())
-                    data = file.read()
+                    
+                    # Continually send the file
+                    datas = file.read(filesize)
+                    while datas:
+                        conn.send(datas)
+                        datas = file.read(filesize)
                     file.close()
-                    conn.sendall(data)
-                else:
+                    print(f"{word_list[1]} was upload")
+                else: # Else the file couldn't be found
                     conn.send(f"ERROR {word_list[1]}".encode())
+
         # If the client sends an ACK, delete the requested file
         elif word_list[0] == "ACK":
             print("Got to ACK")
             if os.path.exists(f"{word_list[1]}"):
                 os.remove(f"{word_list[1]}")
                 print("File exists")
+
+        # Break the connection
         elif word_list[0] == "EXIT":
             conn.send("EXIT".encode())
             break
@@ -83,9 +112,11 @@ def talking_fn(conn: socket, q) -> None:
 
 def main(hostname: str, portno: int) -> None:
     # Create a server sock
-    server_sock = socket(AF_INET, SOCK_STREAM)
+    server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_sock.bind((hostname, portno))
     server_sock.listen()
+
+    print(hostname)
 
     # Create a queue for the threads to communicate through
     q = Queue()
@@ -114,4 +145,4 @@ def main(hostname: str, portno: int) -> None:
     #server_sock.close()
 
 if __name__ == "__main__":
-    main("localhost", 8080)
+    main(socket.gethostbyname(socket.gethostname()), 12345)

@@ -9,7 +9,7 @@ def listening_fn(conn: socket) -> None:
     while True:
         # Receive the message, decode, and split
         message = conn.recv(2048)
-        message = message.decode('utf-8')
+        message = message.decode('latin-1')
         word_list = message.split()
         
         # If it is a DOWNLOAD message, prepare to receive a file
@@ -17,60 +17,96 @@ def listening_fn(conn: socket) -> None:
             filename = word_list[1]
             filesize = word_list[2]
             filesize = int(filesize)
-            with open(filename, "wb") as file:
-                print("I got here right here")
+            file = open(filename, "wb")
 
-                # Receive the file
-                data = conn.recv(filesize)
-
+            # Continually receive the file
+            while True:
+                conn.settimeout(1)
+                try:
+                    datas = conn.recv(filesize)
+                except:
+                    break
+                conn.settimeout(None)
                 # Save the file
-                file.write(data)
-                file.close()
+                file.write(datas)
+            file.close()
+            conn.settimeout(None)
+            print(f"{filename} was uploaded")
+
+
             # If this DOWNLOAD came from another client, send an ACK to the server
             if len(word_list) == 4: 
                 time.sleep(1)
                 conn.send(f"ACK {word_list[1]}".encode())
+        
+        # Close the connection
         elif word_list[0] == "EXIT":
             break
+
+        # A file could not be found
         elif word_list[0] == "ERROR":
             print(f"{word_list[1]} could not be found!!!")
+
         # If the server asks for a file, send it if we have it
         elif word_list[0] == "UPLOAD":
             if os.path.exists(f"{word_list[1]}"):
                 file = open(f"{word_list[1]}", "rb")
                 filesize = os.path.getsize(f"{word_list[1]}")
-                conn.send(f"UPLOAD {word_list[1]} {filesize}".encode())
-                data = file.read()
+
+                # Let the server know a file is about to be sent
+                conn.send(f"DOWNLOAD {word_list[1]} {filesize}".encode())
+
+                # Continually send the file
+                datas = file.read(filesize)
+                while datas:
+                    conn.send(datas)
+                    datas = file.read(filesize)
                 file.close()
-                conn.sendall(data)
+                print(f"{word_list[1]} was upload")
 
-
+# Need to implement being able to DOWNLOAD two files 
+# Start implementing the strategies for this
+# Talking thread to send messages to server
 def talking_fn(conn: socket) -> None:
     while True:
         # Get input from the user
         message = input("Enter Message: ")
         word_list = message.split()
+
+        # A command must be entered
         if not word_list:
             messageError()
+
         # If the user wants to exit, let the server know and disconnect
         elif word_list[0] == "EXIT":
             conn.send("EXIT".encode())
             break
+
         #Uploads a file to the receiver if the user enters the UPLOAD keyword
         elif word_list[0] == "UPLOAD":
             #If the file exists then send it
             if os.path.exists(f"{word_list[1]}"):
                 file = open(f"{word_list[1]}", "rb")
                 filesize = os.path.getsize(f"{word_list[1]}")
+
+                # Let the server know a file is about to be sent
                 conn.send(f"UPLOAD {word_list[1]} {filesize}".encode())
-                data = file.read()
+                
+                # Continually send the file
+                datas = file.read(filesize)
+                while datas:
+                    conn.send(datas)
+                    datas = file.read(filesize)
                 file.close()
-                conn.sendall(data)
-            else:
+                print(f"{word_list[1]} was uploaded")
+                
+            else: # The file couldn't be found
                 print(f"{word_list[1]} could not be found")
+        
         # Ask the server for a file
         elif word_list[0] == "DOWNLOAD":
             conn.send(f"DOWNLOAD {word_list[1]}".encode())
+
         #Deletes a file if the user enters the DELETE keyword
         elif word_list[0] == "DELETE":
             #If the file exists then delete it
@@ -78,11 +114,14 @@ def talking_fn(conn: socket) -> None:
                 os.remove(f"{word_list[1]}")
             else:
                 print(f"File {word_list[1]} could not be found")
+
+        # Print the contents of the directory
         elif word_list[0] == "DIR":
             path = os.getcwd()
             list = os.listdir(path)
             print(f"{list}")
-        else:
+
+        else: # A valid command must be entered
             messageError()
 
 # Error function for communicating with server
