@@ -12,8 +12,43 @@ def listening_fn(conn: socket) -> None:
         message = message.decode('latin-1')
         word_list = message.split()
         
+        # Prepare to receive a merged file
+        if len(word_list) == 5:
+            filename = "merged"
+            filesize = word_list[0]
+            filesize = int(filesize)
+            file = open(filename, "wb")
+
+            # Continually receive the file
+            while True:
+                conn.settimeout(1)
+                try:
+                    datas = conn.recv(filesize)
+                except:
+                    break
+                conn.settimeout(None)
+                # Save the file
+                file.write(datas)
+            file.close()
+            conn.settimeout(None)
+
+            # Split the merged file into two files
+            filesize1 = int(word_list[2])
+            filesize2 = int(word_list[4])
+            with open("merged", "rb") as fp:
+                data = fp.read(filesize1)
+                with open(f"{word_list[1]}", "wb") as file:
+                    file.write(data)
+                data = fp.read(filesize2)
+                with open(f"{word_list[3]}", "wb") as file:
+                    file.write(data)
+
+            # Remvoe the merged file and send an ACk to the server
+            os.remove("merged")
+            conn.send(f"ACK {word_list[3]}".encode())
+
         # If it is a DOWNLOAD message, prepare to receive a file
-        if word_list[0] == "DOWNLOAD":
+        elif word_list[0] == "DOWNLOAD":
             filename = word_list[1]
             filesize = word_list[2]
             filesize = int(filesize)
@@ -54,7 +89,7 @@ def listening_fn(conn: socket) -> None:
                 filesize = os.path.getsize(f"{word_list[1]}")
 
                 # Let the server know a file is about to be sent
-                conn.send(f"DOWNLOAD {word_list[1]} {filesize}".encode())
+                conn.send(f"UPLOAD {word_list[1]} {filesize}".encode())
 
                 # Continually send the file
                 datas = file.read(filesize)
@@ -105,7 +140,10 @@ def talking_fn(conn: socket) -> None:
         
         # Ask the server for a file
         elif word_list[0] == "DOWNLOAD":
-            conn.send(f"DOWNLOAD {word_list[1]}".encode())
+            if len(word_list) == 4:
+                conn.send(f"DOWNLOAD {word_list[1]} {word_list[2]} {word_list[3]}".encode())
+            else:
+                conn.send(f"DOWNLOAD {word_list[1]}".encode())
 
         #Deletes a file if the user enters the DELETE keyword
         elif word_list[0] == "DELETE":

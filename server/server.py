@@ -34,6 +34,104 @@ def listening_fn(conn: socket, q) -> None:
             file.close()
             conn.settimeout(None)
             print(f"{filename} was uploaded")
+        
+        # Scenerio 2, client is asking for two files
+        elif len(word_list) == 4:
+            # Find which file the server has
+            if os.path.exists(f"{word_list[1]}"):
+                    i = 1
+                    j = 2
+            else:
+                    i = 2
+                    j = 1
+
+            # Strategy 1, send the files one at a time
+            if word_list[3] == "1":
+                file = open(f"{word_list[i]}", "rb")
+                filesize = os.path.getsize(f"{word_list[i]}")
+
+                # Let the client know a file is about to be sent
+                conn.send(f"DOWNLOAD {word_list[i]} {filesize}".encode())
+
+                # Continually send the file
+                datas = file.read(filesize)
+                while datas:
+                    conn.send(datas)
+                    datas = file.read(filesize)
+                file.close()
+                print(f"{word_list[i]} was uploaded")
+
+                # Create a variable to store the current clients sock and requested file
+                temp = [conn, word_list[j]]
+                q.put(temp)
+                time.sleep(3)
+
+                # If the file was found send it, if not send an error
+                if os.path.exists(f"{word_list[j]}"):
+                    file = open(f"{word_list[j]}", "rb")
+                    filesize = os.path.getsize(f"{word_list[j]}")
+
+                    # Let the client know a file is about to be sent
+                    conn.send(f"DOWNLOAD {word_list[j]} {filesize} 1".encode())
+                
+                    # Continually send the file
+                    datas = file.read(filesize)
+                    while datas:                            
+                        conn.send(datas)
+                        datas = file.read(filesize)
+                    file.close()
+                    print(f"{word_list[j]} was upload")
+                else: # Else the file couldn't be found
+                    conn.send(f"ERROR {word_list[j]}".encode())
+
+            # Strategy 2, wait until the file is received from the other client and merge them
+            elif word_list[3] == "2":
+                # Create a variable to store the current clients sock and requested file
+                temp = [conn, word_list[j]]
+                q.put(temp)
+                time.sleep(3)
+
+                # If the file was found send it, if not send an error
+                if os.path.exists(f"{word_list[j]}"):
+                    # Merge the two files
+                    data = data2 = ""
+  
+                    # Reading data from file1
+                    with open(f'{word_list[i]}') as fp:
+                        data = fp.read()
+  
+                    # Reading data from file2
+                    with open(f'{word_list[j]}') as fp:
+                        data2 = fp.read()
+  
+                    # Merging 2 files
+                    data += data2
+  
+                    with open ('merged', 'w') as fp:
+                        fp.write(data)
+
+                    filesize = os.path.getsize("merged")
+                    file3 = open('merged', "rb")
+
+                    filesize2 = os.path.getsize(f"{word_list[i]}")
+                    filesize3 = os.path.getsize(f"{word_list[j]}")
+
+                    # Let the client know a merged file is about to be sent
+                    conn.send(f"{filesize} {word_list[i]} {filesize2} {word_list[j]} {filesize3}".encode())
+
+                    datas = file3.read(filesize)
+                    while datas:                            
+                        conn.send(datas)
+                        datas = file3.read(filesize)
+                    file3.close()
+                    print("merged was upload")
+
+                    # Delete the merged file
+                    os.remove("merged")
+                else: # Else the file couldn't be found
+                    conn.send(f"ERROR {word_list[j]}".encode())
+
+
 
         # Send the specified file to client
         # If it isn't on the server ask the other client
@@ -51,13 +149,13 @@ def listening_fn(conn: socket, q) -> None:
                     conn.send(datas)
                     datas = file.read(filesize)
                 file.close()
-                print(f"{word_list[1]} was upload")
+                print(f"{word_list[1]} was uploaded")
 
             else: # Ask the other client for the file
                 # Create a variable to store the current clients sock and requested file
                 temp = [conn, word_list[1]]
                 q.put(temp)
-                time.sleep(1)
+                time.sleep(3)
 
                 # If the file was found send it, if not send an error
                 if os.path.exists(f"{word_list[1]}"):
@@ -66,10 +164,10 @@ def listening_fn(conn: socket, q) -> None:
 
                     # Let the client know a file is about to be sent
                     conn.send(f"DOWNLOAD {word_list[1]} {filesize} 1".encode())
-                    
+                
                     # Continually send the file
                     datas = file.read(filesize)
-                    while datas:
+                    while datas:                            
                         conn.send(datas)
                         datas = file.read(filesize)
                     file.close()
@@ -96,12 +194,12 @@ def talking_fn(conn: socket, q) -> None:
         if q.qsize() > 0:
             # Get the info from the queue
             temp = q.get()
+
             # If the wrong thread gets the info, put it the info back into the queue and wait
             if temp[0] == conn:
-                print("same socket")
+                print(f"wrong sock {threading.get_ident()}")
                 q.put(temp)
-                time.sleep(1)
-
+                time.sleep(2)
             else:
                 # The message got to the right thread, send an UPLOAD message to the client for the file
                 print(temp[1])
