@@ -97,17 +97,17 @@ def listening_fn(conn: socket, q) -> None:
                     data = data2 = ""
   
                     # Reading data from file1
-                    with open(f'{word_list[i]}') as fp:
+                    with open(f'{word_list[i]}', "rb") as fp:
                         data = fp.read()
   
                     # Reading data from file2
-                    with open(f'{word_list[j]}') as fp:
+                    with open(f'{word_list[j]}', "rb") as fp:
                         data2 = fp.read()
   
                     # Merging 2 files
                     data += data2
   
-                    with open ('merged', 'w') as fp:
+                    with open ('merged', 'wb') as fp:
                         fp.write(data)
 
                     filesize = os.path.getsize("merged")
