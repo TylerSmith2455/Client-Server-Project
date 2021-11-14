@@ -36,168 +36,169 @@ def listening_fn(conn: socket, q) -> None:
             print(f"{filename} was uploaded")
         
         # Scenerio 2, client is asking for two files
-        elif len(word_list) == 4:
-            # Find which file the server has
-            if os.path.exists(f"{word_list[1]}"):
-                    i = 1
-                    j = 2
-            else:
-                    i = 2
-                    j = 1
+        elif len(word_list) > 3:
+            serverFiles = []
+            clientFiles = []
+
+            # Find which files the server already has
+            for x in range(int((len(word_list) - 2))):
+                if os.path.exists(f"{word_list[x+2]}"):
+                    serverFiles.append(x+2)
+                else:
+                    clientFiles.append(x+2)
 
             # Strategy 1, send the files one at a time
-            if word_list[3] == "1":
-                file = open(f"{word_list[i]}", "rb")
-                filesize = os.path.getsize(f"{word_list[i]}")
+            if word_list[1] == "1":
+                
+                # For every file that the server has, send it
+                for x in serverFiles:
+                    if x > 0:
+                        time.sleep(1)
+                    file = open(f"{word_list[x]}", "rb")
+                    filesize = os.path.getsize(f"{word_list[x]}")
 
-                # Let the client know a file is about to be sent
-                conn.send(f"DOWNLOAD {word_list[i]} {filesize}".encode())
+                    # Let the client know a file is about to be sent
+                    conn.send(f"DOWNLOAD {word_list[x]} {filesize}".encode())
+                    print(f"Sending {word_list[x]}")
+
+                    # Continually send the file
+                    datas = file.read(filesize)
+                    while datas:
+                        conn.send(datas)
+                        datas = file.read(filesize)
+                    file.close()
+
+                # For every file the server doesn't have
+                for x in clientFiles:
+                    # See if the other client has the file
+                    temp = [conn, word_list[x]]
+                    q.put(temp)
+                    time.sleep(3)
+
+                    # If the other client sent the file
+                    if os.path.exists(f"{word_list[x]}"):
+                        file = open(f"{word_list[x]}", "rb")
+                        filesize = os.path.getsize(f"{word_list[x]}")
+
+                        # Let the client know a file is about to be sent
+                        conn.send(f"DOWNLOAD {word_list[x]} {filesize} 1".encode())
+                
+                        # Continually send the file
+                        datas = file.read(filesize)
+                        while datas:                            
+                            conn.send(datas)
+                            datas = file.read(filesize)
+                        file.close()
+                        print(f"{word_list[x]} was upload")
+                    else: # Else the file couldn't be found
+                        conn.send(f"ERROR {word_list[x]}".encode())
+
+            # Strategy 2, wait until the file is received from the other client and merge them
+            elif word_list[1] == "2":
+                sentFiles = []
+                
+                # For every file the server doesn't have, see if the other client has it
+                for x in clientFiles:
+                    temp = [conn, word_list[x]]
+                    q.put(temp)
+                    time.sleep(3)
+
+                # Add all the server's files into a single variable
+                data = b""
+                for x in serverFiles:
+                    sentFiles.append(x)
+                    with open(f'{word_list[x]}', "rb") as fp:
+                        data2 = b""
+                        data2 = fp.read()
+                    data += data2
+                
+                # Add all the client's files to the previously made file variable
+                numClient_Files = 0
+                for x in clientFiles:
+                    if os.path.exists(f"{word_list[x]}"):
+                        numClient_Files += 1
+                        sentFiles.append(x)
+                        with open(f'{word_list[x]}', "rb") as fp:
+                            data2 = b""
+                            data2 = fp.read()
+                        data += data2
+                    else:
+                        conn.send(f"ERROR {word_list[x]}".encode())
+
+                # Write all the data to one file
+                with open ('merged', 'wb') as fp:
+                        fp.write(data)
+
+                # Let the client know a merged file is about to be sent
+                mergedSize = os.path.getsize("merged")
+                message = f"{mergedSize}"
+                message += f" {numClient_Files}"
+                for x in sentFiles:
+                    filesize = os.path.getsize(f"{word_list[x]}")
+                    message += f" {word_list[x]} {filesize}"
+                
+                conn.send(f"{message}".encode())
+
+                file = open('merged', "rb")
 
                 # Continually send the file
                 datas = file.read(filesize)
-                while datas:
+                while datas:                            
                     conn.send(datas)
                     datas = file.read(filesize)
                 file.close()
-                print(f"{word_list[i]} was uploaded")
 
-                # Create a variable to store the current clients sock and requested file
-                temp = [conn, word_list[j]]
-                q.put(temp)
-                time.sleep(3)
-
-                # If the file was found send it, if not send an error
-                if os.path.exists(f"{word_list[j]}"):
-                    file = open(f"{word_list[j]}", "rb")
-                    filesize = os.path.getsize(f"{word_list[j]}")
-
-                    # Let the client know a file is about to be sent
-                    conn.send(f"DOWNLOAD {word_list[j]} {filesize} 1".encode())
-                
-                    # Continually send the file
-                    datas = file.read(filesize)
-                    while datas:                            
-                        conn.send(datas)
-                        datas = file.read(filesize)
-                    file.close()
-                    print(f"{word_list[j]} was upload")
-                else: # Else the file couldn't be found
-                    conn.send(f"ERROR {word_list[j]}".encode())
-
-            # Strategy 2, wait until the file is received from the other client and merge them
-            elif word_list[3] == "2":
-                # Create a variable to store the current clients sock and requested file
-                temp = [conn, word_list[j]]
-                q.put(temp)
-                time.sleep(3)
-
-                # If the file was found send it, if not send an error
-                if os.path.exists(f"{word_list[j]}"):
-                    # Merge the two files
-                    data = data2 = ""
-  
-                    # Reading data from file1
-                    with open(f'{word_list[i]}', "rb") as fp:
-                        data = fp.read()
-  
-                    # Reading data from file2
-                    with open(f'{word_list[j]}', "rb") as fp:
-                        data2 = fp.read()
-  
-                    # Merging 2 files
-                    data += data2
-  
-                    with open ('merged', 'wb') as fp:
-                        fp.write(data)
-
-                    filesize = os.path.getsize("merged")
-                    file3 = open('merged', "rb")
-
-                    filesize2 = os.path.getsize(f"{word_list[i]}")
-                    filesize3 = os.path.getsize(f"{word_list[j]}")
-
-                    # Let the client know a merged file is about to be sent
-                    conn.send(f"{filesize} {word_list[i]} {filesize2} {word_list[j]} {filesize3}".encode())
-
-                    datas = file3.read(filesize)
-                    while datas:                            
-                        conn.send(datas)
-                        datas = file3.read(filesize)
-                    file3.close()
-                    print("merged was upload")
-
-                    # Delete the merged file
-                    os.remove("merged")
-
-                # Else the file couldn't be found
-                else: 
-                    # Let the client know one of the files couldn't be found
-                    conn.send(f"ERROR {word_list[j]}".encode())
-                    file = open(f"{word_list[i]}", "rb")
-                    filesize = os.path.getsize(f"{word_list[i]}")
-
-                    # Let the client know a file is about to be sent
-                    conn.send(f"DOWNLOAD {word_list[i]} {filesize}".encode())
-
-                    # Continually send the file
-                    datas = file.read(filesize)
-                    while datas:
-                        conn.send(datas)
-                        datas = file.read(filesize)
-                    file.close()
+                os.remove("merged")
 
             # Strategy 3, server waits for both files to be ready and sends them back to back
-            elif word_list[3] == "3":
-                temp = [conn, word_list[j]]
-                q.put(temp)
-                time.sleep(3)
-                
-                # Need to fix strategy 3
-                # Both files are found
-                if os.path.exists(f"{word_list[j]}"):
-                    file1 = open(f"{word_list[i]}", "rb")
-                    filesize = os.path.getsize(f"{word_list[i]}")
+            elif word_list[1] == "3":
+                # For every file the server doesn't have, see if the other client has it
+                for x in clientFiles:
+                    temp = [conn, word_list[x]]
+                    q.put(temp)
+                    time.sleep(3)
+
+                # For every file the server has, send it
+                for x in serverFiles:
+                    if x > 0:
+                        time.sleep(2)
+                    file = open(f"{word_list[x]}", "rb")
+                    filesize = os.path.getsize(f"{word_list[x]}")
 
                     # Let the client know a file is about to be sent
-                    conn.send(f"DOWNLOAD {word_list[i]} {filesize}".encode())
-
-                    # Continually send the file
-                    datas = file1.read(filesize)
-                    while datas:
-                        conn.send(datas)
-                        datas = file1.read(filesize)
-                    file1.close()
-                    time.sleep(1)
-                    file2 = open(f"{word_list[j]}", "rb")
-                    filesize = os.path.getsize(f"{word_list[j]}")
-
-                    # Let the client know a file is about to be sent
-                    conn.send(f"DOWNLOAD {word_list[j]} {filesize} 1".encode())
-
-                    # Continually send the file
-                    datas = file2.read(filesize)
-                    while datas:
-                        conn.send(datas)
-                        datas = file2.read(filesize)
-                    file2.close()
-
-                # The client didn't have the file
-                else:
-                    file = open(f"{word_list[i]}", "rb")
-                    filesize = os.path.getsize(f"{word_list[i]}")
-
-                    # Let the client know a file is about to be sent
-                    conn.send(f"DOWNLOAD {word_list[i]} {filesize}".encode())
+                    conn.send(f"DOWNLOAD {word_list[x]} {filesize}".encode())
+                    print(f"Sending {word_list[x]}")
 
                     # Continually send the file
                     datas = file.read(filesize)
                     while datas:
                         conn.send(datas)
-                        datas = file.read(filesize)
+                        datas = file.read(filesize)                        
                     file.close()
 
-                    # Let the client know one fo the files could't be found
-                    conn.send(f"ERROR {word_list[j]}".encode())
+                time.sleep(2)
+
+                # For every file the other client sends the server, send it
+                for x in clientFiles:
+                    if x > 0:
+                            time.sleep(2)
+                    if os.path.exists(f"{word_list[x]}"):
+                        file = open(f"{word_list[x]}", "rb")
+                        filesize = os.path.getsize(f"{word_list[x]}")
+
+                        # Let the client know a file is about to be sent
+                        conn.send(f"DOWNLOAD {word_list[x]} {filesize} 1".encode())
+                
+                        # Continually send the file
+                        datas = file.read(filesize)
+                        while datas:                            
+                            conn.send(datas)
+                            datas = file.read(filesize)
+                        file.close()
+                        print(f"{word_list[x]} was upload")
+                    else: # Else the file couldn't be found
+                        conn.send(f"ERROR {word_list[x]}".encode())
+                
 
         # Send the specified file to client
         # If it isn't on the server ask the other client

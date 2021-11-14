@@ -13,7 +13,7 @@ def listening_fn(conn: socket) -> None:
         word_list = message.split()
         
         # Prepare to receive a merged file
-        if len(word_list) == 5:
+        if len(word_list) > 5:
             filename = "merged"
             filesize = word_list[0]
             filesize = int(filesize)
@@ -31,21 +31,24 @@ def listening_fn(conn: socket) -> None:
                 file.write(datas)
             file.close()
             conn.settimeout(None)
+            
+            index = 2
 
-            # Split the merged file into two files
-            filesize1 = int(word_list[2])
-            filesize2 = int(word_list[4])
+            # Split the merged files into the right files
             with open("merged", "rb") as fp:
-                data = fp.read(filesize1)
-                with open(f"{word_list[1]}", "wb") as file:
-                    file.write(data)
-                data = fp.read(filesize2)
-                with open(f"{word_list[3]}", "wb") as file:
-                    file.write(data)
+                for x in range(int((len(word_list)-1)/2)):
+                    data = fp.read(int(word_list[index+1]))
+                    with open(f"{word_list[index]}", "wb") as file:
+                        file.write(data)
+                    index += 2
 
-            # Remvoe the merged file and send an ACk to the server
+            # Send ACKs for files that came from the client
+            index = len(word_list)
+            for x in range(int(word_list[1])):
+                conn.send(f"ACK {word_list[index-2]}".encode())
+                index -= 2
+                time.sleep(1)
             os.remove("merged")
-            conn.send(f"ACK {word_list[3]}".encode())
 
         # If it is a DOWNLOAD message, prepare to receive a file
         elif word_list[0] == "DOWNLOAD":
@@ -71,7 +74,6 @@ def listening_fn(conn: socket) -> None:
 
             # If this DOWNLOAD came from another client, send an ACK to the server
             if len(word_list) == 4: 
-                time.sleep(1)
                 conn.send(f"ACK {word_list[1]}".encode())
         
         # Close the connection
@@ -138,10 +140,10 @@ def talking_fn(conn: socket) -> None:
             else: # The file couldn't be found
                 print(f"{word_list[1]} could not be found")
         
-        # Ask the server for a file
+        # Ask the server for a file or multipe files
         elif word_list[0] == "DOWNLOAD":
-            if len(word_list) == 4:
-                conn.send(f"DOWNLOAD {word_list[1]} {word_list[2]} {word_list[3]}".encode())
+            if len(word_list) > 3:
+                conn.send(f"{message}".encode())
             else:
                 conn.send(f"DOWNLOAD {word_list[1]}".encode())
 
