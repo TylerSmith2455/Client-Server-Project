@@ -35,7 +35,7 @@ def listening_fn(conn: socket, q) -> None:
             conn.settimeout(None)
             print(f"{filename} was uploaded")
         
-        # Scenerio 2, client is asking for two files
+        # Scenerio 2, client is asking for multiple files
         elif len(word_list) > 3:
             serverFiles = []
             clientFiles = []
@@ -52,8 +52,6 @@ def listening_fn(conn: socket, q) -> None:
                 
                 # For every file that the server has, send it
                 for x in serverFiles:
-                    if x > 0:
-                        time.sleep(1)
                     file = open(f"{word_list[x]}", "rb")
                     filesize = os.path.getsize(f"{word_list[x]}")
 
@@ -67,6 +65,12 @@ def listening_fn(conn: socket, q) -> None:
                         conn.send(datas)
                         datas = file.read(filesize)
                     file.close()
+
+                    # Wait for ACK from client
+                    message = conn.recv(2048)
+                    message = message.decode('latin-1')
+                    if message == "ACK":
+                        print("ACK received")
 
                 # For every file the server doesn't have
                 for x in clientFiles:
@@ -89,7 +93,15 @@ def listening_fn(conn: socket, q) -> None:
                             conn.send(datas)
                             datas = file.read(filesize)
                         file.close()
+
+                        # Wait for ACK from client
+                        message = conn.recv(2048)
+                        message = message.decode('latin-1')
+                        if message == "ACK":
+                            print("ACK received")
+                        os.remove(f"{word_list[x]}")
                         print(f"{word_list[x]} was upload")
+
                     else: # Else the file couldn't be found
                         conn.send(f"ERROR {word_list[x]}".encode())
 
@@ -113,10 +125,8 @@ def listening_fn(conn: socket, q) -> None:
                     data += data2
                 
                 # Add all the client's files to the previously made file variable
-                numClient_Files = 0
                 for x in clientFiles:
                     if os.path.exists(f"{word_list[x]}"):
-                        numClient_Files += 1
                         sentFiles.append(x)
                         with open(f'{word_list[x]}', "rb") as fp:
                             data2 = b""
@@ -132,10 +142,14 @@ def listening_fn(conn: socket, q) -> None:
                 # Let the client know a merged file is about to be sent
                 mergedSize = os.path.getsize("merged")
                 message = f"{mergedSize}"
-                message += f" {numClient_Files}"
+
                 for x in sentFiles:
                     filesize = os.path.getsize(f"{word_list[x]}")
                     message += f" {word_list[x]} {filesize}"
+
+                # Remove all the files that came from the other client
+                for x in clientFiles:
+                    os.remove(f"{word_list[x]}")
                 
                 conn.send(f"{message}".encode())
 
@@ -160,8 +174,6 @@ def listening_fn(conn: socket, q) -> None:
 
                 # For every file the server has, send it
                 for x in serverFiles:
-                    if x > 0:
-                        time.sleep(2)
                     file = open(f"{word_list[x]}", "rb")
                     filesize = os.path.getsize(f"{word_list[x]}")
 
@@ -176,12 +188,14 @@ def listening_fn(conn: socket, q) -> None:
                         datas = file.read(filesize)                        
                     file.close()
 
-                time.sleep(2)
+                    # Wait for ACK from client
+                    message = conn.recv(2048)
+                    message = message.decode('latin-1')
+                    if message == "ACK":
+                        print("ACK received")
 
                 # For every file the other client sends the server, send it
                 for x in clientFiles:
-                    if x > 0:
-                            time.sleep(2)
                     if os.path.exists(f"{word_list[x]}"):
                         file = open(f"{word_list[x]}", "rb")
                         filesize = os.path.getsize(f"{word_list[x]}")
@@ -195,7 +209,15 @@ def listening_fn(conn: socket, q) -> None:
                             conn.send(datas)
                             datas = file.read(filesize)
                         file.close()
+
+                        # Wait for ACK from client
+                        message = conn.recv(2048)
+                        message = message.decode('latin-1')
+                        if message == "ACK":
+                            print("ACK received")
                         print(f"{word_list[x]} was upload")
+                        os.remove(f"{word_list[x]}")
+
                     else: # Else the file couldn't be found
                         conn.send(f"ERROR {word_list[x]}".encode())
                 
@@ -216,6 +238,10 @@ def listening_fn(conn: socket, q) -> None:
                     conn.send(datas)
                     datas = file.read(filesize)
                 file.close()
+                message = conn.recv(2048)
+                message = message.decode('latin-1')
+                if message == "ACK":
+                    print("ACK received")
                 print(f"{word_list[1]} was uploaded")
 
             else: # Ask the other client for the file

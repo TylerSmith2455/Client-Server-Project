@@ -32,7 +32,7 @@ def listening_fn(conn: socket) -> None:
             file.close()
             conn.settimeout(None)
             
-            index = 2
+            index = 1
 
             # Split the merged files into the right files
             with open("merged", "rb") as fp:
@@ -42,12 +42,7 @@ def listening_fn(conn: socket) -> None:
                         file.write(data)
                     index += 2
 
-            # Send ACKs for files that came from the client
-            index = len(word_list)
-            for x in range(int(word_list[1])):
-                conn.send(f"ACK {word_list[index-2]}".encode())
-                index -= 2
-                time.sleep(1)
+            # Remove the merged file
             os.remove("merged")
 
         # If it is a DOWNLOAD message, prepare to receive a file
@@ -69,12 +64,10 @@ def listening_fn(conn: socket) -> None:
                 file.write(datas)
             file.close()
             conn.settimeout(None)
+
+            # Send ACK to server
+            conn.send(f"ACK".encode())
             print(f"{filename} was uploaded")
-
-
-            # If this DOWNLOAD came from another client, send an ACK to the server
-            if len(word_list) == 4: 
-                conn.send(f"ACK {word_list[1]}".encode())
         
         # Close the connection
         elif word_list[0] == "EXIT":
