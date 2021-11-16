@@ -21,7 +21,7 @@ def listening_fn(conn: socket) -> None:
 
             # Continually receive the file
             while True:
-                conn.settimeout(1)
+                conn.settimeout(3)
                 try:
                     datas = conn.recv(filesize)
                 except:
@@ -54,7 +54,7 @@ def listening_fn(conn: socket) -> None:
 
             # Continually receive the file
             while True:
-                conn.settimeout(1)
+                conn.settimeout(3)
                 try:
                     datas = conn.recv(filesize)
                 except:
