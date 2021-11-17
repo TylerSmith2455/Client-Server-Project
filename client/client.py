@@ -13,7 +13,7 @@ def listening_fn(conn: socket) -> None:
         word_list = message.split()
         
         # Prepare to receive a merged file
-        if len(word_list) > 5:
+        if len(word_list) > 4:
             filename = "merged"
             filesize = word_list[0]
             filesize = int(filesize)
@@ -40,6 +40,7 @@ def listening_fn(conn: socket) -> None:
                     data = fp.read(int(word_list[index+1]))
                     with open(f"{word_list[index]}", "wb") as file:
                         file.write(data)
+                    print(f"{word_list[index]} was uploaded")
                     index += 2
 
             # Remove the merged file
@@ -92,10 +93,8 @@ def listening_fn(conn: socket) -> None:
                     conn.send(datas)
                     datas = file.read(filesize)
                 file.close()
-                print(f"{word_list[1]} was upload")
-
-# Need to implement being able to DOWNLOAD two files 
-# Start implementing the strategies for this
+                print(f"{word_list[1]} was uploaded")
+              
 # Talking thread to send messages to server
 def talking_fn(conn: socket) -> None:
     while True:

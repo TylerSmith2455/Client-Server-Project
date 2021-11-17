@@ -92,10 +92,8 @@ def listening_fn(conn: socket) -> None:
                     conn.send(datas)
                     datas = file.read(filesize)
                 file.close()
-                print(f"{word_list[1]} was upload")
+                print(f"{word_list[1]} was uploaded")
 
-# Need to implement being able to DOWNLOAD two files 
-# Start implementing the strategies for this
 # Talking thread to send messages to server
 def talking_fn(conn: socket) -> None:
     while True:

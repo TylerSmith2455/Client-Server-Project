@@ -14,6 +14,7 @@ def listening_fn(conn: socket, q) -> None:
 
         #Uploads a file if the client sends the UPLOAD keyword
         if word_list[0] == "UPLOAD":
+            clock_start = time.time()
             filename = word_list[1]
             filesize = word_list[2]
             filesize = int(filesize)
@@ -33,9 +34,19 @@ def listening_fn(conn: socket, q) -> None:
             file.close()
             conn.settimeout(None)
             print(f"{filename} was uploaded")
-        
+
+            # Record total completion time
+            clock_end = time.time()
+            file = open("totalTime.txt", "w")
+            totalTime = clock_end - clock_start
+            file.write(f"Server downloaded 1 file in {totalTime} seconds \n")
+            file.close()
+
+
         # Scenerio 2, client is asking for multiple files
         elif len(word_list) > 3:
+            clock_start = time.time()
+            numFiles = 0
             serverFiles = []
             clientFiles = []
             flag = 0
@@ -71,6 +82,8 @@ def listening_fn(conn: socket, q) -> None:
                     message = message.decode('latin-1')
                     if message == "ACK":
                         print(f"Client finished downloading {word_list[x]}")
+                    
+                    numFiles += 1
 
                 # For every file the server doesn't have
                 for x in clientFiles:
@@ -108,17 +121,25 @@ def listening_fn(conn: socket, q) -> None:
                         file.close()
 
                         # Wait for ACK from client
-                        print(f"{word_list[x]} was upload")
                         message = conn.recv(2048)
                         message = message.decode('latin-1')
                         if message == "ACK":
                             print(f"Client finished downloading {word_list[x]}")
                         os.remove(f"{word_list[x]}")
+
+                        numFiles += 1
                         
 
                     else: # Else the file couldn't be found
                         conn.send(f"ERROR {word_list[x]}".encode())
 
+                # Record total completion time
+                clock_end = time.time()
+                file = open("totalTime.txt", "w")
+                totalTime = clock_end - clock_start
+                file.write(f"Strategy 1 client downloaded {numFiles} files in {totalTime} seconds \n")
+                file.close()
+                
             # Strategy 2, wait until the file is received from the other client and merge them
             elif word_list[1] == "2":
                 sentFiles = []
@@ -151,6 +172,7 @@ def listening_fn(conn: socket, q) -> None:
                             else:
                                 break
                         file.close()
+                        numFiles += 1
                     else:
                         conn.send(f"ERROR {word_list[x]}".encode())
 
@@ -162,14 +184,17 @@ def listening_fn(conn: socket, q) -> None:
                         data2 = b""
                         data2 = fp.read()
                     data += data2
+                    numFiles += 1
 
                 # Write all the data to one file
                 with open ('merged', 'wb') as fp:
                         fp.write(data)
 
+                message = ""
+
                 # Let the client know a merged file is about to be sent
                 mergedSize = os.path.getsize("merged")
-                message = f"{mergedSize}"
+                message += f"{mergedSize}"
 
                 for x in sentFiles:
                     filesize = os.path.getsize(f"{word_list[x]}")
@@ -191,7 +216,20 @@ def listening_fn(conn: socket, q) -> None:
                     datas = file.read(filesize)
                 file.close()
 
+                message = conn.recv(2048)
+                message = message.decode('latin-1')
+                if message == "ACK":
+                    for x in sentFiles:
+                        print(f"Client finished downloading {word_list[x]}")
+
                 os.remove("merged")
+
+                # Record total completion time
+                clock_end = time.time()
+                file = open("totalTime.txt", "w")
+                totalTime = clock_end - clock_start
+                file.write(f"Strategy 2 client downloaded {numFiles} files in {totalTime} seconds \n")
+                file.close()
 
             # Strategy 3, server waits for both files to be ready and sends them back to back
             elif word_list[1] == "3":
@@ -236,6 +274,7 @@ def listening_fn(conn: socket, q) -> None:
                             print(f"Client finished downloading {word_list[x]}")
                         print(f"{word_list[x]} was upload")
                         os.remove(f"{word_list[x]}")
+                        numFiles += 1
 
                     else: # Else the file couldn't be found
                         conn.send(f"ERROR {word_list[x]}".encode())
@@ -262,10 +301,19 @@ def listening_fn(conn: socket, q) -> None:
                     message = message.decode('latin-1')
                     if message == "ACK":
                         print(f"Client finished downloading {word_list[x]}")
+                    numFiles += 1
+                
+                # Record total completion time
+                clock_end = time.time()
+                file = open("totalTime.txt", "w")
+                totalTime = clock_end - clock_start
+                file.write(f"Strategy 3 client downloaded {numFiles} files in {totalTime} seconds \n")
+                file.close()
                 
         # Send the specified file to client
         # If it isn't on the server ask the other client
         elif word_list[0] == "DOWNLOAD":
+            clock_start = time.time()
             if os.path.exists(f"{word_list[1]}"):
                 file = open(f"{word_list[1]}", "rb")
                 filesize = os.path.getsize(f"{word_list[1]}")
@@ -283,6 +331,13 @@ def listening_fn(conn: socket, q) -> None:
                 message = message.decode('latin-1')
                 if message == "ACK":
                     print(f"{word_list[1]} was uploaded")
+
+                # Record total completion time
+                clock_end = time.time()
+                file = open("totalTime.txt", "w")
+                totalTime = clock_end - clock_start
+                file.write(f"Client downloaded 1 file in {totalTime} seconds \n")
+                file.close()
 
             else: # Ask the other client for the file
                 # Create a variable to store the current clients sock and requested file
@@ -317,6 +372,13 @@ def listening_fn(conn: socket, q) -> None:
                     if message == "ACK":
                         print(f"{word_list[1]} was uploaded")
                     os.remove(f"{word_list[1]}")
+
+                    # Record total completion time
+                    clock_end = time.time()
+                    file = open("totalTime.txt", "w")
+                    totalTime = clock_end - clock_start
+                    file.write(f"Client downloaded 1 file in {totalTime} seconds \n")
+                    file.close()
 
                 else: # Else the file couldn't be found
                     conn.send(f"ERROR {word_list[1]}".encode())
