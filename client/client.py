@@ -200,7 +200,7 @@ def main() -> None:
             listening_thread.join()
             talking_thread.join()
 
-            print("conn was closed")
+            print("Disconnected from server")
             conn.close()
         else:
             commandError()

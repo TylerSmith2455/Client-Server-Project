@@ -14,7 +14,6 @@ def listening_fn(conn: socket, q) -> None:
 
         #Uploads a file if the client sends the UPLOAD keyword
         if word_list[0] == "UPLOAD":
-            print(f"{message}")
             filename = word_list[1]
             filesize = word_list[2]
             filesize = int(filesize)
@@ -39,6 +38,7 @@ def listening_fn(conn: socket, q) -> None:
         elif len(word_list) > 3:
             serverFiles = []
             clientFiles = []
+            flag = 0
 
             # Find which files the server already has
             for x in range(int((len(word_list) - 2))):
@@ -70,7 +70,7 @@ def listening_fn(conn: socket, q) -> None:
                     message = conn.recv(2048)
                     message = message.decode('latin-1')
                     if message == "ACK":
-                        print("ACK received")
+                        print(f"Client finished downloading {word_list[x]}")
 
                 # For every file the server doesn't have
                 for x in clientFiles:
@@ -84,7 +84,6 @@ def listening_fn(conn: socket, q) -> None:
                         if os.path.exists(f"{word_list[x]}"):
                             break
         
-                    flag = 0
                     # If the other client sent the file
                     if os.path.exists(f"{word_list[x]}"):
                         file = open(f"{word_list[x]}", "rb")
@@ -113,7 +112,7 @@ def listening_fn(conn: socket, q) -> None:
                         message = conn.recv(2048)
                         message = message.decode('latin-1')
                         if message == "ACK":
-                            print("ACK received")
+                            print(f"Client finished downloading {word_list[x]}")
                         os.remove(f"{word_list[x]}")
                         
 
@@ -124,7 +123,6 @@ def listening_fn(conn: socket, q) -> None:
             elif word_list[1] == "2":
                 sentFiles = []
                 data = b""
-                flag = 0
 
                 # For every file the server doesn't have, see if the other client has it
                 for x in clientFiles:
@@ -197,7 +195,6 @@ def listening_fn(conn: socket, q) -> None:
 
             # Strategy 3, server waits for both files to be ready and sends them back to back
             elif word_list[1] == "3":
-
                 # For every file the server doesn't have, see if the other client has it
                 for x in clientFiles:
                     # See if the other client has the file
@@ -236,7 +233,7 @@ def listening_fn(conn: socket, q) -> None:
                         message = conn.recv(2048)
                         message = message.decode('latin-1')
                         if message == "ACK":
-                            print("ACK received")
+                            print(f"Client finished downloading {word_list[x]}")
                         print(f"{word_list[x]} was upload")
                         os.remove(f"{word_list[x]}")
 
@@ -264,7 +261,7 @@ def listening_fn(conn: socket, q) -> None:
                     message = conn.recv(2048)
                     message = message.decode('latin-1')
                     if message == "ACK":
-                        print("ACK received")
+                        print(f"Client finished downloading {word_list[x]}")
                 
         # Send the specified file to client
         # If it isn't on the server ask the other client
@@ -285,14 +282,14 @@ def listening_fn(conn: socket, q) -> None:
                 message = conn.recv(2048)
                 message = message.decode('latin-1')
                 if message == "ACK":
-                    print("ACK received")
-                print(f"{word_list[1]} was uploaded")
+                    print(f"{word_list[1]} was uploaded")
 
             else: # Ask the other client for the file
                 # Create a variable to store the current clients sock and requested file
                 temp = [conn, word_list[1]]
                 q.put(temp)
                 time.sleep(3)
+                flag = 0
 
                 # If the file was found send it, if not send an error
                 if os.path.exists(f"{word_list[1]}"):
@@ -300,33 +297,43 @@ def listening_fn(conn: socket, q) -> None:
                     filesize = os.path.getsize(f"{word_list[1]}")
 
                     # Let the client know a file is about to be sent
-                    conn.send(f"DOWNLOAD {word_list[1]} {filesize} 1".encode())
-                
+                    conn.send(f"DOWNLOAD {word_list[1]} {filesize}".encode())
+
                     # Continually send the file
-                    datas = file.read(filesize)
-                    while datas:                            
-                        conn.send(datas)
+                    while True:
                         datas = file.read(filesize)
+                        while datas:                            
+                            conn.send(datas)
+                            datas = file.read(filesize)
+                            flag = 0
+                        if flag == 0:
+                            flag = 1
+                            time.sleep(2)
+                        else:
+                            break
                     file.close()
-                    print(f"{word_list[1]} was upload")
+                    message = conn.recv(2048)
+                    message = message.decode('latin-1')
+                    if message == "ACK":
+                        print(f"{word_list[1]} was uploaded")
+                    os.remove(f"{word_list[1]}")
+
                 else: # Else the file couldn't be found
                     conn.send(f"ERROR {word_list[1]}".encode())
 
-        # If the client sends an ACK, delete the requested file
-        elif word_list[0] == "ACK":
-            print("Got to ACK")
-            if os.path.exists(f"{word_list[1]}"):
-                os.remove(f"{word_list[1]}")
-                print("File exists")
-
         # Break the connection
         elif word_list[0] == "EXIT":
+            print("Disconnected from Client")
             conn.send("EXIT".encode())
-            break
+            temp = [conn, "KILL"]
+            q.put(temp)
+            time.sleep(1)
+            return
 
 # Talking Thread to send messages to Clients asking for files
 def talking_fn(conn: socket, q) -> None:
     # Coninually check for the queue to have something in it
+    count = 0
     while True:
         if q.empty() != 0:
             # Get the info from the queue
@@ -334,12 +341,16 @@ def talking_fn(conn: socket, q) -> None:
 
             # If the wrong thread gets the info, put it the info back into the queue and wait
             if temp[0] == conn:
-                print(f"wrong sock {threading.get_ident()}")
-                q.put(temp)
-                time.sleep(2)
+                if temp[1] == "KILL":
+                    return
+                if count > 3:
+                    count = 0
+                else:
+                    q.put(temp)
+                    count += 1
+                    time.sleep(2)
             else:
                 # The message got to the right thread, send an UPLOAD message to the client for the file
-                print(f"UPLOAD {temp[1]}")
                 conn.send(f"UPLOAD {temp[1]}".encode())
 
 def main(hostname: str, portno: int) -> None:
@@ -367,14 +378,11 @@ def main(hostname: str, portno: int) -> None:
         
         listening_thread.start()
         talking_thread.start()
-        client_thread.join()
+        
         listening_thread.join()
         talking_thread.join()
-
-        print("conn was closed")
         client_sock.close()
     clients(q)
-    #server_sock.close()
 
 if __name__ == "__main__":
     main(socket.gethostbyname(socket.gethostname()), 12345)
