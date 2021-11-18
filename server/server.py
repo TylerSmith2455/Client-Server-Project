@@ -20,6 +20,8 @@ def listening_fn(conn: socket, q) -> None:
             filesize = int(filesize)
             file = open(filename, "wb")
 
+            data_rate_start = time.time()
+
             # Continually receive the file
             while True:
                 conn.settimeout(1)
@@ -33,11 +35,22 @@ def listening_fn(conn: socket, q) -> None:
                 file.write(datas)
             file.close()
             conn.settimeout(None)
+
+             # Record Download data rate
+            data_rate_end = time.time()
+            file = open("ServerDownloadRate.txt", "a")
+            if totalTime == 0:
+                totalTime = 0.000001
+            totalTime = data_rate_end - data_rate_start
+            rate = filesize/(totalTime*100000)
+            file.write(f"Server downloaded 1 file at {rate} MB/sec \n")
+            file.close()
+
             print(f"{filename} was uploaded")
 
             # Record total completion time
             clock_end = time.time()
-            file = open("totalTime.txt", "w")
+            file = open("totalTime.txt", "a")
             totalTime = clock_end - clock_start
             file.write(f"Server downloaded 1 file in {totalTime} seconds \n")
             file.close()
@@ -135,7 +148,7 @@ def listening_fn(conn: socket, q) -> None:
 
                 # Record total completion time
                 clock_end = time.time()
-                file = open("totalTime.txt", "w")
+                file = open("totalTime.txt", "a")
                 totalTime = clock_end - clock_start
                 file.write(f"Strategy 1 client downloaded {numFiles} files in {totalTime} seconds \n")
                 file.close()
@@ -226,7 +239,7 @@ def listening_fn(conn: socket, q) -> None:
 
                 # Record total completion time
                 clock_end = time.time()
-                file = open("totalTime.txt", "w")
+                file = open("totalTime.txt", "a")
                 totalTime = clock_end - clock_start
                 file.write(f"Strategy 2 client downloaded {numFiles} files in {totalTime} seconds \n")
                 file.close()
@@ -305,7 +318,7 @@ def listening_fn(conn: socket, q) -> None:
                 
                 # Record total completion time
                 clock_end = time.time()
-                file = open("totalTime.txt", "w")
+                file = open("totalTime.txt", "a")
                 totalTime = clock_end - clock_start
                 file.write(f"Strategy 3 client downloaded {numFiles} files in {totalTime} seconds \n")
                 file.close()
@@ -321,20 +334,35 @@ def listening_fn(conn: socket, q) -> None:
                 # Let the client know a file is about to be sent
                 conn.send(f"DOWNLOAD {word_list[1]} {filesize}".encode())
 
+                data_rate_start = time.time()
+
                 # Continually send the file
                 datas = file.read(filesize)
                 while datas:
                     conn.send(datas)
                     datas = file.read(filesize)
                 file.close()
+
+                data_rate_end= time.time()
+
+                # Make sure Client received file
                 message = conn.recv(2048)
                 message = message.decode('latin-1')
                 if message == "ACK":
                     print(f"{word_list[1]} was uploaded")
 
+                # Record Download data rate
+                file = open("ServerUploadRate.txt", "a")
+                totalTime = data_rate_end - data_rate_start
+                if totalTime == 0:
+                    totalTime = 0.000001
+                rate = filesize/(totalTime*100000)
+                file.write(f"Server uploaded 1 file at {rate} MB/sec \n")
+                file.close()
+
                 # Record total completion time
                 clock_end = time.time()
-                file = open("totalTime.txt", "w")
+                file = open("totalTime.txt", "a")
                 totalTime = clock_end - clock_start
                 file.write(f"Client downloaded 1 file in {totalTime} seconds \n")
                 file.close()
