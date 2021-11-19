@@ -1,4 +1,0 @@
-Client downloaded 1 file at 207.0191569650804 MB/sec 
-Client downloaded 1 file at 204.7347308796343 MB/sec 
-Client downloaded 1 file at 208.83997581187842 MB/sec 
-Client downloaded 1 file at 5.454679560565015 MB/sec 

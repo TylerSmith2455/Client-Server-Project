@@ -14,14 +14,14 @@ def listening_fn(conn: socket, q) -> None:
 
         #Uploads a file if the client sends the UPLOAD keyword
         if word_list[0] == "UPLOAD":
-            clock_start = time.time()
+            data_rate_start = time.time()
+
             filename = word_list[1]
             filesize = word_list[2]
             filesize = int(filesize)
             file = open(filename, "wb")
 
-            data_rate_start = time.time()
-
+            temp = os.path.getsize(filename)
             # Continually receive the file
             while True:
                 conn.settimeout(1)
@@ -33,28 +33,18 @@ def listening_fn(conn: socket, q) -> None:
 
                 # Save the file
                 file.write(datas)
+
+                if (time.time() - data_rate_start) > 1:
+                    rateFile = open("ServerDownloadRate.txt", "a")
+                    rate = (os.path.getsize(filename)-temp)/((time.time()-data_rate_start)*1024*1024)
+                    rateFile.write(f"Server downloading at {rate} MB/sec \n")
+                    rateFile.close()
+                    temp = os.path.getsize(filename)
+                    data_rate_start = time.time()
             file.close()
             conn.settimeout(None)
 
-             # Record Download data rate
-            data_rate_end = time.time()
-            file = open("ServerDownloadRate.txt", "a")
-            if totalTime == 0:
-                totalTime = 0.000001
-            totalTime = data_rate_end - data_rate_start
-            rate = filesize/(totalTime*100000)
-            file.write(f"Server downloaded 1 file at {rate} MB/sec \n")
-            file.close()
-
             print(f"{filename} was uploaded")
-
-            # Record total completion time
-            clock_end = time.time()
-            file = open("totalTime.txt", "a")
-            totalTime = clock_end - clock_start
-            file.write(f"Server downloaded 1 file in {totalTime} seconds \n")
-            file.close()
-
 
         # Scenerio 2, client is asking for multiple files
         elif len(word_list) > 3:
@@ -351,22 +341,6 @@ def listening_fn(conn: socket, q) -> None:
                 if message == "ACK":
                     print(f"{word_list[1]} was uploaded")
 
-                # Record Download data rate
-                file = open("ServerUploadRate.txt", "a")
-                totalTime = data_rate_end - data_rate_start
-                if totalTime == 0:
-                    totalTime = 0.000001
-                rate = filesize/(totalTime*100000)
-                file.write(f"Server uploaded 1 file at {rate} MB/sec \n")
-                file.close()
-
-                # Record total completion time
-                clock_end = time.time()
-                file = open("totalTime.txt", "a")
-                totalTime = clock_end - clock_start
-                file.write(f"Client downloaded 1 file in {totalTime} seconds \n")
-                file.close()
-
             else: # Ask the other client for the file
                 # Create a variable to store the current clients sock and requested file
                 temp = [conn, word_list[1]]
@@ -401,15 +375,15 @@ def listening_fn(conn: socket, q) -> None:
                         print(f"{word_list[1]} was uploaded")
                     os.remove(f"{word_list[1]}")
 
-                    # Record total completion time
-                    clock_end = time.time()
-                    file = open("totalTime.txt", "w")
-                    totalTime = clock_end - clock_start
-                    file.write(f"Client downloaded 1 file in {totalTime} seconds \n")
-                    file.close()
-
                 else: # Else the file couldn't be found
                     conn.send(f"ERROR {word_list[1]}".encode())
+
+             # Record total completion time
+            clock_end = time.time()
+            file = open("totalTime.txt", "a")
+            totalTime = clock_end - clock_start
+            file.write(f"Client downloaded 1 file in {totalTime} seconds \n")
+            file.close()
 
         # Break the connection
         elif word_list[0] == "EXIT":
@@ -438,7 +412,7 @@ def talking_fn(conn: socket, q) -> None:
                 else:
                     q.put(temp)
                     count += 1
-                    time.sleep(2)
+                    time.sleep(3)
             else:
                 # The message got to the right thread, send an UPLOAD message to the client for the file
                 conn.send(f"UPLOAD {temp[1]}".encode())

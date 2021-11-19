@@ -1,9 +1,0 @@
-Server downloaded 1 file in 1.1754319667816162 seconds 
-Client downloaded 1 file in 3.2131857872009277 seconds 
-Client downloaded 1 file in 3.002202272415161 seconds 
-Client downloaded 1 file in 3.011934757232666 seconds 
-Client downloaded 1 file in 3.1615750789642334 seconds 
-Client downloaded 1 file in 3.150062322616577 seconds 
-Client downloaded 1 file in 3.0149707794189453 seconds 
-Server downloaded 1 file in 1.189267635345459 seconds 
-Server downloaded 1 file in 1.004223108291626 seconds 

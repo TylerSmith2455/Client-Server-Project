@@ -13,7 +13,7 @@ def listening_fn(conn: socket) -> None:
         word_list = message.split()
         
         # Prepare to receive a merged file
-        if len(word_list) > 5:
+        if len(word_list) > 4:
             filename = "merged"
             filesize = word_list[0]
             filesize = int(filesize)
@@ -40,6 +40,7 @@ def listening_fn(conn: socket) -> None:
                     data = fp.read(int(word_list[index+1]))
                     with open(f"{word_list[index]}", "wb") as file:
                         file.write(data)
+                    print(f"{word_list[index]} was uploaded")
                     index += 2
 
             # Remove the merged file
@@ -51,6 +52,8 @@ def listening_fn(conn: socket) -> None:
             filesize = word_list[2]
             filesize = int(filesize)
             file = open(filename, "wb")
+
+            data_rate_start = time.time()
 
             # Continually receive the file
             while True:
@@ -67,6 +70,17 @@ def listening_fn(conn: socket) -> None:
 
             # Send ACK to server
             conn.send(f"ACK".encode())
+
+            # Record Download data rate
+            data_rate_end = time.time()
+            file = open("ClientDownloadRate.txt", "a")
+            totalTime = data_rate_end - data_rate_start
+            if totalTime == 0:
+                totalTime = 0.000001
+            rate = filesize/(totalTime*100000)
+            file.write(f"Client downloaded 1 file at {rate} MB/sec \n")
+            file.close()
+
             print(f"{filename} was uploaded")
         
         # Close the connection
@@ -94,6 +108,8 @@ def listening_fn(conn: socket) -> None:
                 file.close()
                 print(f"{word_list[1]} was uploaded")
 
+
+              
 # Talking thread to send messages to server
 def talking_fn(conn: socket) -> None:
     while True:
@@ -120,12 +136,25 @@ def talking_fn(conn: socket) -> None:
                 # Let the server know a file is about to be sent
                 conn.send(f"UPLOAD {word_list[1]} {filesize}".encode())
                 
+                data_rate_start = time.time()
+
                 # Continually send the file
                 datas = file.read(filesize)
                 while datas:
                     conn.send(datas)
                     datas = file.read(filesize)
                 file.close()
+
+                 # Record Download data rate
+                data_rate_end = time.time()
+                file = open("ClientUploadRate.txt", "a")
+                totalTime = data_rate_end - data_rate_start
+                if totalTime == 0:
+                    totalTime = 0.000001
+                rate = filesize/(totalTime*100000)
+                file.write(f"Client uploaded 1 file at {rate} MB/sec \n")
+                file.close()
+
                 print(f"{word_list[1]} was uploaded")
                 
             else: # The file couldn't be found

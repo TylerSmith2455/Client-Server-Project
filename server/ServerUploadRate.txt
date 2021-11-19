@@ -1,6 +1,0 @@
-Server uploaded 1 file at 8216.70037658675 MB/sec 
-Server uploaded 1 file at 7919.254610045749 MB/sec 
-Server uploaded 1 file at 3250.0000000000005 MB/sec 
-Server uploaded 1 file at 10112.20837131317 MB/sec 
-Server uploaded 1 file at 11140.592087806432 MB/sec 
-Server uploaded 1 file at 5477.864981963775 MB/sec 
