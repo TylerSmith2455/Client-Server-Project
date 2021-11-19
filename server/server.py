@@ -14,14 +14,14 @@ def listening_fn(conn: socket, q) -> None:
 
         #Uploads a file if the client sends the UPLOAD keyword
         if word_list[0] == "UPLOAD":
-            data_rate_start = time.time()
+            # data_rate_start = time.time()
 
             filename = word_list[1]
             filesize = word_list[2]
             filesize = int(filesize)
             file = open(filename, "wb")
 
-            temp = os.path.getsize(filename)
+            # temp = os.path.getsize(filename)
             # Continually receive the file
             while True:
                 conn.settimeout(1)
@@ -33,14 +33,14 @@ def listening_fn(conn: socket, q) -> None:
 
                 # Save the file
                 file.write(datas)
-
-                if (time.time() - data_rate_start) > 1:
-                    rateFile = open("ServerDownloadRate.txt", "a")
-                    rate = (os.path.getsize(filename)-temp)/((time.time()-data_rate_start)*1024*1024)
-                    rateFile.write(f"Server downloading at {rate} MB/sec \n")
-                    rateFile.close()
-                    temp = os.path.getsize(filename)
-                    data_rate_start = time.time()
+               # Calculate download rate of file
+               # if (time.time() - data_rate_start) > 1:
+               #     rateFile = open("ServerDownloadRate.txt", "a")
+               #     rate = (os.path.getsize(filename)-temp)/((time.time()-data_rate_start)*1024*1024)
+               #     rateFile.write(f"Server downloading at {rate} MB/sec \n")
+               #     rateFile.close()
+               #     temp = os.path.getsize(filename)
+               #     data_rate_start = time.time()
             file.close()
             conn.settimeout(None)
 
@@ -345,7 +345,11 @@ def listening_fn(conn: socket, q) -> None:
                 # Create a variable to store the current clients sock and requested file
                 temp = [conn, word_list[1]]
                 q.put(temp)
-                time.sleep(3)
+                # Give the client time to upload the file
+                for a in range(3):
+                    time.sleep(a+2)
+                    if os.path.exists(f"{word_list[1]}"):
+                        break
                 flag = 0
 
                 # If the file was found send it, if not send an error

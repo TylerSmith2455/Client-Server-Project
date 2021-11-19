@@ -1,0 +1,9 @@
+Client uploading at 9.34845284784485 MB/sec 
+Client uploading at 8.084886505453124 MB/sec 
+Client uploading at 6.570882486411676 MB/sec 
+Client uploading at 7.4237082568926525 MB/sec 
+Client uploading at 7.5704818741247975 MB/sec 
+Client uploading at 6.583855944029964 MB/sec 
+Client uploading at 6.960580005337873 MB/sec 
+Client uploading at 7.201305591318142 MB/sec 
+Client uploading at 5.8475120454819365 MB/sec 

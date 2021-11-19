@@ -128,23 +128,24 @@ def talking_fn(conn: socket) -> None:
                 # Let the server know a file is about to be sent
                 conn.send(f"UPLOAD {word_list[1]} {filesize}".encode())
                 
-                data_rate_start = time.time()
-
+               # data_rate_start = time.time()
+               # buffSize = 128000
+                buffSize = filesize
                 # Continually send the file
-                datas = file.read(64000)
-                temp = datas
+                datas = file.read(buffSize)
+               # temp = datas
                 while datas:
                     conn.send(datas)
-                    datas = file.read(64000)
-                    temp += datas
+                    datas = file.read(buffSize)
+                   # temp += datas
                     # Compute data download rate
-                    if (time.time() - data_rate_start) > 1:
-                        rateFile = open("ClientUploadRate.txt", "a")
-                        rate = sys.getsizeof(temp)/((time.time()-data_rate_start)*1024*1024)
-                        rateFile.write(f"Client uploading at {rate} MB/sec \n")
-                        rateFile.close()
-                        temp = datas
-                        data_rate_start = time.time()
+                   # if (time.time() - data_rate_start) > 1:
+                   #     rateFile = open("ClientUploadRate.txt", "a")
+                   #     rate = sys.getsizeof(temp)/((time.time()-data_rate_start)*1024*1024)
+                   #     rateFile.write(f"Client uploading at {rate} MB/sec \n")
+                   #     rateFile.close()
+                   #     temp = datas
+                   #     data_rate_start = time.time()
                 file.close()
                 
                 print(f"{word_list[1]} was uploaded")
