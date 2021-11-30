@@ -209,7 +209,7 @@ def listening_fn(conn: socket, q) -> None:
                         os.remove(f"{word_list[x]}")
                 
                 conn.send(f"{message}".encode())
-
+                time.sleep(1)
                 file = open('merged', "rb")
 
                 # Continually send the file
@@ -324,16 +324,12 @@ def listening_fn(conn: socket, q) -> None:
                 # Let the client know a file is about to be sent
                 conn.send(f"DOWNLOAD {word_list[1]} {filesize}".encode())
 
-                data_rate_start = time.time()
-
                 # Continually send the file
                 datas = file.read(filesize)
                 while datas:
                     conn.send(datas)
                     datas = file.read(filesize)
                 file.close()
-
-                data_rate_end= time.time()
 
                 # Make sure Client received file
                 message = conn.recv(2048)

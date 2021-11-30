@@ -1,3 +1,0 @@
-Server downloaded 1 file at 445.75271514600684 MB/sec 
-Server downloaded 1 file at 439.80646448971345 MB/sec 
-Server downloaded 1 file at 10.467683837591348 MB/sec 

@@ -4,7 +4,6 @@ import os
 import time
 import sys
 
-
 # Listening thread to receive messages
 def listening_fn(conn: socket) -> None:
     while True:
@@ -99,8 +98,6 @@ def listening_fn(conn: socket) -> None:
                     datas = file.read(filesize)
                 file.close()
                 print(f"{word_list[1]} was uploaded")
-
-
               
 # Talking thread to send messages to server
 def talking_fn(conn: socket) -> None:
